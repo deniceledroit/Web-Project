@@ -16,14 +16,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
 
-Route::get('/', function () {
-    return view('welcome');
+Auth::routes();
+Route::middleware('apirest.check')->group(function(){
+    Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+    Route::resource('booking',\App\Http\Controllers\BookingController::class);
+    Route::resource('car',\App\Http\Controllers\CarController::class);
+    Route::resource('customer',\App\Http\Controllers\CustomerController::class);
+    Route::resource('user',\App\Http\Controllers\UserController::class);
 });
 
-Auth::routes();
-
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-
-Route::get('/home', function() {
-    return view('home');
-})->name('home');

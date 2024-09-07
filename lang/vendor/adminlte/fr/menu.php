@@ -16,4 +16,5 @@ return [
     'important'                     => 'Important',
     'warning'                       => 'Avertissement',
     'information'                   => 'Informations',
+    'Bookings'                      => 'Réservations'
 ];

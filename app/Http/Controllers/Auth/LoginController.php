@@ -3,16 +3,17 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Providers\RouteServiceProvider;
+use Illuminate\Foundation\Auth\AuthenticatesUsers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use App\Models\ApiModel;
 use App\Models\User;
-use App\Providers\RouteServiceProvider;
-use http\Message;
-use Illuminate\Foundation\Auth\AuthenticatesUsers;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
-use function Laravel\Prompts\error;
+use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
@@ -27,8 +28,6 @@ class LoginController extends Controller
     |
     */
 
-    use AuthenticatesUsers;
-
     /**
      * Where to redirect users after login.
      *
@@ -39,28 +38,70 @@ class LoginController extends Controller
     /**
      * Create a new controller instance.
      *
-     * @return void
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
     }
 
-    public function login(Request $request){
-        $credentials=[
-            'email'=>$request['email'],
-            'password'=>$request['password']
-        ];
-        $response=Http::post(env('API_URL').'/login',$credentials);
-        $token=json_decode($response->body())->success->token ?? null;
-        if(!$token){
-            return to_route('login');
+    // Override the showLoginForm() coming from trait AuthenticateUsers
+    public function showLoginForm()
+    {
+        return view('auth.login');
+    }
+
+    // Override the login() coming from trait AuthenticateUsers
+    public function login(Request $request)
+    {
+        // Being sure we've got valid credentials
+        $request->validate([
+            'email' => 'required',
+            'password' => 'required',
+        ]);
+
+        $credentials = $request->only('email', 'password');
+
+        // Call the API REST /login route for authentication
+        $response = ApiModel::post('login', [
+            'email' => $credentials['email'],
+            'password' => $credentials['password']
+        ]);
+
+        // Get the token if success
+        if (isset($response->success->token)) {
+            $token = $response->success->token;
+            // Keep the token in the session
+            Session::put('api_token', $token);
+            $request->session()->put('api_token', $token);
+
+            // Call the user
+            $response = ApiModel::getWithToken('user');
+            //dd($response);
+            if (isset($response->id)) {
+                $user = new User(['id' => $response->id, 'name' => $response->name, 'email' => $response->email, 'role_id'=>$response->role_id]);
+                Auth::setUser($user);
+                return to_route('home');
+            }
         }
-        else{
-            Session::put('apitoken',$token);
-            $user=new User($credentials);
-            Auth::setUser($user);
-            return to_route('home');
-        }
+
+        return throw ValidationException::withMessages(['email'=> [trans('auth.failed')]]);
+        //return redirect('login');
+    }
+
+    // Override the logout() coming from trait AuthenticateUsers
+    public function logout(Request $request)
+    {
+        // Disconnect from the API
+        // TODO
+
+        // Disconnect from the APPLICATION
+        Session::forget('api_token');
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return $request->wantsJson()
+            ? new JsonResponse([], 204)
+            : redirect('/');
     }
 }

@@ -1,0 +1,11 @@
+{
+    "Name":"Nom du client",
+    "Status": "Statut",
+    "Bookings": "Réservations",
+    "Booking n°": "Réservation n°",
+    "Starting date": "Date de départ",
+    "Ending date": "Date de départ",
+    "Starting city": "Ville de départ",
+    "Ending city": "Ville d'arrivée",
+    "City": "Destination"
+}
